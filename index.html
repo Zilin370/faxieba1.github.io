@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>点击发泄小游戏（优化版）</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      background: radial-gradient(#ffd6d6, #ff9999);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Segoe UI', sans-serif;
+      overflow: hidden;
+      position: relative;
+      transition: background 0.3s;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      padding: 20px;
+      box-sizing: border-box;
+      text-align: center;
+    }
+
+    #clickBtn {
+      background-color: #ff4d4f;
+      border: none;
+      color: white;
+      padding: 30px 60px;
+      font-size: 32px;
+      border-radius: 20px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      transition: 0.1s ease-in-out;
+    }
+
+    #clickBtn:active {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px red;
+      background-color: #ff1a1a;
+    }
+
+    #stats {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #800000;
+    }
+
+    .boom {
+      position: absolute;
+      font-size: 40px;
+      color: red;
+      animation: boomFade 1s ease-out forwards;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    @keyframes boomFade {
+      0% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(2) translateY(-50px); }
+    }
+
+    .pulse {
+      position: absolute;
+      border: 3px solid #ff4d4f;
+      border-radius: 50%;
+      animation: pulseOut 0.8s ease-out forwards;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    @keyframes pulseOut {
+      0% { transform: scale(0); opacity: 1; }
+      100% { transform: scale(3); opacity: 0; }
+    }
+
+    .flash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: red;
+      opacity: 0.7;
+      animation: flashBoom 0.4s ease-out forwards;
+      z-index: 9999;
+    }
+
+    @keyframes flashBoom {
+      0% { opacity: 0.7; }
+      100% { opacity: 0; }
+    }
+
+    .explosion {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 80px;
+      color: white;
+      background: red;
+      padding: 40px;
+      border-radius: 20px;
+      z-index: 99999;
+      animation: explode 2s ease-out forwards;
+    }
+
+    @keyframes explode {
+      0% { opacity: 0; transform: scale(0.5) translate(-50%, -50%); }
+      50% { opacity: 1; transform: scale(1.2) translate(-50%, -50%); }
+      100% { opacity: 0; transform: scale(3) translate(-50%, -50%); }
+    }
+
+    .shake {
+      animation: shakeAnim 0.1s infinite;
+    }
+
+    @keyframes shakeAnim {
+      0% { transform: translate(0, 0); }
+      25% { transform: translate(5px, -5px); }
+      50% { transform: translate(-5px, 5px); }
+      75% { transform: translate(5px, 5px); }
+      100% { transform: translate(0, 0); }
+    }
+
+    .floating-tip {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: yellow;
+      padding: 12px 24px;
+      border-radius: 16px;
+      font-size: 20px;
+      font-weight: bold;
+      z-index: 9999;
+      opacity: 0.9;
+    }
+
+    /* 新增：屏幕裂纹效果 */
+    .crack {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><path d="M0,0 L100,100 L200,50 L300,150 L400,20 L500,180 L600,10 L700,190 L800,30 L900,170 L1000,0" stroke="black" stroke-width="2" fill="none" opacity="0.3"/></svg>');
+      pointer-events: none;
+      z-index: 99999;
+      animation: crackFade 3s forwards;
+    }
+
+    @keyframes crackFade {
+      0% { opacity: 0; }
+      50% { opacity: 0.7; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>发泄点击小游戏</h1>
+    <p>疯狂点我释放情绪吧！</p>
+    <button id="clickBtn">😡 点一下！</button>
+    <div id="stats"></div>
+    <div id="counter">已释放：0 次</div>
+    <div id="message">点击越多，越爽！</div>
+  </div>
+
+  <audio id="roar1" src="https://cdn.pixabay.com/download/audio/2022/03/22/audio_bdd30f2d97.mp3?filename=angry-roar-1.mp3"></audio>
+  <audio id="roar2" src="https://cdn.pixabay.com/download/audio/2022/11/11/audio_6d5b0a39a5.mp3?filename=monster-roar-113213.mp3"></audio>
+
+  <script>
+    // ========== 配置常量 ==========
+    const CONFIG = {
+      messages: [
+        "继续点击，释放情绪！",
+        "不错，再来几下！",
+        "是不是感觉轻松点了？",
+        "你很棒，继续坚持！",
+        "每一下都是在照顾自己~",
+        "发泄很重要，别憋着！",
+        "深呼吸，再点一下！"
+      ],
+      boomWords: ["吼！！", "啊！！", "哇啊啊！！", "滚开！！", "别惹我！！"],
+      emojis: ["😡", "💢", "🔥", "😤", "💣", "👊"],
+      levels: [
+        { clicks: 10, effect: "flash" },
+        { clicks: 50, effect: "explosion" },
+        { clicks: 100, effect: "crack" }
+      ]
+    };
+
+    // ========== DOM 元素 ==========
+    const btn = document.getElementById('clickBtn');
+    const stats = document.getElementById('stats');
+    const counter = document.getElementById('counter');
+    const messageBox = document.getElementById('message');
+    const roar1 = document.getElementById('roar1');
+    const roar2 = document.getElementById('roar2');
+
+    // ========== 状态变量 ==========
+    let clickCount = 0;
+    let lastClickTime = null;
+    let lastSpeed = null;
+
+    // ========== 初始化 ==========
+    // 预加载音频
+    window.addEventListener('load', () => {
+      roar1.load();
+      roar2.load();
+    });
+
+    // ========== 工具函数 ==========
+    // 创建爆炸效果
+    function createBoom(x, y) {
+      const boom = document.createElement('div');
+      boom.classList.add('boom');
+      boom.innerText = '💥';
+      boom.style.left = `${x}px`;
+      boom.style.top = `${y}px`;
+      document.body.appendChild(boom);
+      setTimeout(() => boom.remove(), 1000);
+    }
+
+    // 创建脉冲圆圈
+    function createPulse(x, y) {
+      const pulse = document.createElement('div');
+      pulse.classList.add('pulse');
+      pulse.style.left = `${x}px`;
+      pulse.style.top = `${y}px`;
+      document.body.appendChild(pulse);
+      setTimeout(() => pulse.remove(), 800);
+    }
+
+    // Emoji 雨
+    function emojiRain() {
+      const emoji = document.createElement('div');
+      emoji.innerText = CONFIG.emojis[Math.floor(Math.random() * CONFIG.emojis.length)];
+      emoji.style.position = 'absolute';
+      emoji.style.left = Math.random() * window.innerWidth + 'px';
+      emoji.style.fontSize = `${Math.random() * 30 + 20}px`;
+      document.body.appendChild(emoji);
+
+      setTimeout(() => {
+        emoji.style.transform = `translateY(-${Math.random() * 300 + 200}px) rotate(${Math.random() * 360}deg)`;
+        emoji.style.opacity = 0;
+      }, 50);
+
+      setTimeout(() => emoji.remove(), 2000);
+    }
+
+    // 播放随机音效
+    function playRandomSound() {
+      const roar = Math.random() > 0.5 ? roar1 : roar2;
+      roar.currentTime = 0;
+      roar.play();
+    }
+
+    // 触发等级特效
+    function triggerLevelEffect(level) {
+      switch (level.effect) {
+        case "flash":
+          const flash = document.createElement('div');
+          flash.classList.add('flash');
+          document.body.appendChild(flash);
+          setTimeout(() => flash.remove(), 400);
+          break;
+
+        case "explosion":
+          document.body.classList.add('shake');
+          const explosion = document.createElement('div');
+          explosion.classList.add('explosion');
+          explosion.innerText = CONFIG.boomWords[Math.floor(Math.random() * CONFIG.boomWords.length)];
+          document.body.appendChild(explosion);
+          playRandomSound();
+          setTimeout(() => {
+            explosion.remove();
+            document.body.classList.remove('shake');
+          }, 2000);
+          break;
+
+        case "crack":
+          const crack = document.createElement('div');
+          crack.classList.add('crack');
+          document.body.appendChild(crack);
+          setTimeout(() => crack.remove(), 3000);
+          break;
+      }
+    }
+
+    // ========== 主逻辑 ==========
+    btn.addEventListener('click', (e) => {
+      // 触觉反馈（支持移动端）
+      if ('vibrate' in navigator) navigator.vibrate(50);
+
+      // 更新点击计数
+      clickCount++;
+      counter.innerText = `已释放：${clickCount} 次`;
+
+      // 计算点击速度
+      const now = new Date().getTime();
+      if (lastClickTime) {
+        const speed = (1000 / (now - lastClickTime)).toFixed(2);
+        stats.innerText = `当前点击速度：${speed} 次/秒`;
+        lastSpeed = speed;
+      }
+      lastClickTime = now;
+
+      // 随机消息
+      messageBox.innerText = CONFIG.messages[Math.floor(Math.random() * CONFIG.messages.length)];
+
+      // 特效
+      emojiRain();
+      createBoom(e.clientX, e.clientY);
+      createPulse(e.clientX, e.clientY);
+
+      // 检查等级特效
+      CONFIG.levels.forEach(level => {
+        if (clickCount % level.clicks === 0) {
+          triggerLevelEffect(level);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
